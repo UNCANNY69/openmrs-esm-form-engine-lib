@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { type FormField, type FormSchema, type SessionMode } from '../types';
 import { EncounterFormProcessor } from '../processors/encounter/encounter-form-processor';
 import {
@@ -11,9 +11,10 @@ import {
 } from '@openmrs/esm-framework';
 import { type FormProcessorConstructor } from '../processors/form-processor';
 import { type FormContextProps } from './form-provider';
-import { processPostSubmissionActions, validateForm } from './form-factory-helper';
+import { processPostSubmissionActions, validateForm, validateEmptyFields } from './form-factory-helper';
 import { useTranslation } from 'react-i18next';
 import { usePostSubmissionActions } from '../hooks/usePostSubmissionActions';
+import IncompleteFormConfirmationModal from '../empty-form-conformation-modal';
 
 interface FormFactoryProviderContextProps {
   patient: fhir.Patient;
@@ -57,7 +58,7 @@ interface FormFactoryProviderProps {
 
 const FormFactoryProviderContext = createContext<FormFactoryProviderContextProps | undefined>(undefined);
 
-export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = ({
+export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = React.memo(({
   patient,
   sessionMode,
   sessionDate,
@@ -79,8 +80,71 @@ export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = ({
   const layoutType = useLayoutType();
   const { isSubmitting, setIsSubmitting, onSubmit, onError, handleClose } = formSubmissionProps;
   const postSubmissionHandlers = usePostSubmissionActions(formJson.postSubmissionActions);
+  const [isEmptyFormModalOpen, setIsEmptyFormModalOpen] = useState(false);
 
   const abortController = new AbortController();
+
+  const handleFormSubmission = useCallback(
+    async (forms: FormContextProps[]) => {
+      try {
+        const results = await Promise.all(
+          forms.map((formContext) => formContext.processor.processSubmission(formContext, abortController)),
+        );
+  
+        formSubmissionProps.setIsSubmitting(false);
+
+        if (sessionMode === 'edit') {
+          showSnackbar({
+            title: t('updatedRecord', 'Record updated'),
+            subtitle: t('updatedRecordDescription', 'The patient encounter was updated'),
+            kind: 'success',
+            isLowContrast: true,
+          });
+        } else {
+          showSnackbar({
+            title: t('submittedForm', 'Form submitted'),
+            subtitle: t('submittedFormDescription', 'Form submitted successfully'),
+            kind: 'success',
+            isLowContrast: true,
+          });
+        }
+
+        if (postSubmissionHandlers) {
+          await processPostSubmissionActions(postSubmissionHandlers, results, patient, sessionMode, t);
+        }
+  
+        hideFormCollapseToggle();
+        if (onSubmit) {
+          onSubmit(results);
+        } else {
+          handleClose();
+        }
+      } catch (errorObject: Error | ToastDescriptor | any) {
+        setIsSubmitting(false);
+        if (errorObject instanceof Error) {
+          showToast({
+            title: t('errorProcessingFormSubmission', 'Error processing form submission'),
+            kind: 'error',
+            description: errorObject.message,
+            critical: true,
+          });
+        } else {
+          showToast(errorObject);
+        }
+      }
+    },
+    [
+      abortController,
+      formSubmissionProps,
+      sessionMode,
+      t,
+      postSubmissionHandlers,
+      patient,
+      hideFormCollapseToggle,
+      onSubmit,
+      handleClose,
+    ],
+  );
 
   const registerForm = useCallback((formId: string, isSubForm: boolean, context: FormContextProps) => {
     if (isSubForm) {
@@ -95,62 +159,34 @@ export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = ({
     EncounterFormProcessor: EncounterFormProcessor,
   });
 
+  const handleIncompleteFormConfirmation = useCallback(() => {
+    const forms = [rootForm.current, ...Object.values(subForms.current)];
+    handleFormSubmission(forms); // To Use the reusable function
+    setIsEmptyFormModalOpen(false);
+  }, [handleFormSubmission]);
+
+  const handleIncompleteFormDiscard = useCallback(() => {
+    setIsEmptyFormModalOpen(false);
+    setIsSubmitting(false);
+  }, [setIsSubmitting]);
+
   useEffect(() => {
     if (isSubmitting) {
-      // TODO: find a dynamic way of managing the form processing order
       const forms = [rootForm.current, ...Object.values(subForms.current)];
-      // validate all forms
       const isValid = forms.every((formContext) => validateForm(formContext));
+      const isEmpty = forms.some((formContext) => validateEmptyFields(formContext));
+  
       if (isValid) {
-        Promise.all(forms.map((formContext) => formContext.processor.processSubmission(formContext, abortController)))
-          .then(async (results) => {
-            formSubmissionProps.setIsSubmitting(false);
-            if (sessionMode === 'edit') {
-              showSnackbar({
-                title: t('updatedRecord', 'Record updated'),
-                subtitle: t('updatedRecordDescription', 'The patient encounter was updated'),
-                kind: 'success',
-                isLowContrast: true,
-              });
-            } else {
-              showSnackbar({
-                title: t('submittedForm', 'Form submitted'),
-                subtitle: t('submittedFormDescription', 'Form submitted successfully'),
-                kind: 'success',
-                isLowContrast: true,
-              });
-            }
-            if (postSubmissionHandlers) {
-              await processPostSubmissionActions(postSubmissionHandlers, results, patient, sessionMode, t);
-            }
-            hideFormCollapseToggle();
-            if (onSubmit) {
-              onSubmit(results);
-            } else {
-              handleClose();
-            }
-          })
-          .catch((errorObject: Error | ToastDescriptor) => {
-            setIsSubmitting(false);
-            if (errorObject instanceof Error) {
-              showToast({
-                title: t('errorProcessingFormSubmission', 'Error processing form submission'),
-                kind: 'error',
-                description: errorObject.message,
-                critical: true,
-              });
-            } else {
-              showToast(errorObject);
-            }
-          });
+        if (isEmpty) {
+          setIsEmptyFormModalOpen(true); 
+        } else {
+          handleFormSubmission(forms);
+        }
       } else {
         setIsSubmitting(false);
       }
     }
-    return () => {
-      abortController.abort();
-    };
-  }, [isSubmitting]);
+  }, [isSubmitting, handleFormSubmission]);
 
   return (
     <FormFactoryProviderContext.Provider
@@ -170,10 +206,17 @@ export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = ({
         handleConfirmQuestionDeletion,
         setIsFormDirty,
       }}>
+      {isEmptyFormModalOpen && (
+        <IncompleteFormConfirmationModal
+          open={isEmptyFormModalOpen}
+          onDiscard={handleIncompleteFormDiscard}
+          onConfirmation={handleIncompleteFormConfirmation}
+        />
+      )}
       {formProcessors.current && children}
     </FormFactoryProviderContext.Provider>
   );
-};
+});
 
 export const useFormFactory = () => {
   const context = useContext(FormFactoryProviderContext);

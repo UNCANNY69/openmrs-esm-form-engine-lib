@@ -5,6 +5,7 @@ import { evaluatePostSubmissionExpression } from '../utils/post-submission-actio
 import { type PostSubmissionActionMeta } from '../hooks/usePostSubmissionActions';
 import { type TFunction } from 'react-i18next';
 import { type SessionMode } from '../types';
+import { Console } from 'console';
 
 export function validateForm(context: FormContextProps) {
   const {
@@ -44,6 +45,24 @@ export function validateForm(context: FormContextProps) {
     )
     .filter((error) => Boolean(error));
   return errors.length === 0;
+}
+
+export function validateEmptyFields(context: FormContextProps){
+  const {
+    formFields,
+    formFieldValidators,
+    patient,
+    sessionMode,
+    addInvalidField,
+    updateFormField,
+    methods: { getValues, trigger },
+  } = context;
+  const values = getValues();
+  return Object.values(values).every(value => 
+    value === null || 
+    value === undefined || 
+    (Array.isArray(value) && value.length === 0)
+  );
 }
 
 export async function processPostSubmissionActions(
