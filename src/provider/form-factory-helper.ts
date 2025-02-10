@@ -5,7 +5,6 @@ import { evaluatePostSubmissionExpression } from '../utils/post-submission-actio
 import { type PostSubmissionActionMeta } from '../hooks/usePostSubmissionActions';
 import { type TFunction } from 'react-i18next';
 import { type SessionMode } from '../types';
-import { Console } from 'console';
 
 export function validateForm(context: FormContextProps) {
   const {
@@ -47,7 +46,7 @@ export function validateForm(context: FormContextProps) {
   return errors.length === 0;
 }
 
-export function validateEmptyFields(context: FormContextProps){
+export function validateEmptyForm(context: FormContextProps){
   const {
     formFields,
     formFieldValidators,

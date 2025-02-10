@@ -32,6 +32,7 @@ interface FormEngineProps {
   onCancel?: () => void;
   handleClose?: () => void;
   handleConfirmQuestionDeletion?: (question: Readonly<FormField>) => Promise<void>;
+  handleEmptyFormSubmission?: () => Promise<void>;
   markFormAsDirty?: (isDirty: boolean) => void;
 }
 
@@ -47,6 +48,7 @@ const FormEngine = ({
   onCancel,
   handleClose,
   handleConfirmQuestionDeletion,
+  handleEmptyFormSubmission,
   markFormAsDirty,
 }: FormEngineProps) => {
   const { t } = useTranslation();
@@ -127,6 +129,7 @@ const FormEngine = ({
           provider={session?.currentProvider}
           visit={visit}
           handleConfirmQuestionDeletion={handleConfirmQuestionDeletion}
+          handleEmptyFormSubmission={handleEmptyFormSubmission}
           isFormExpanded={isFormExpanded}
           formSubmissionProps={{
             isSubmitting,
