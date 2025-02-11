@@ -51,6 +51,7 @@ interface FormFactoryProviderProps {
     handleClose: () => void;
   };
   hideFormCollapseToggle: () => void;
+  handleDiscardForm: () => void;
   handleConfirmQuestionDeletion?: (question: Readonly<FormField>) => Promise<void>;
   handleEmptyFormSubmission?: () => Promise<void>;
   setIsFormDirty: (isFormDirty: boolean) => void;
@@ -71,6 +72,7 @@ export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = ({
   children,
   formSubmissionProps,
   hideFormCollapseToggle,
+  handleDiscardForm,
   handleEmptyFormSubmission,
   handleConfirmQuestionDeletion,
   setIsFormDirty,
@@ -110,8 +112,10 @@ export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = ({
           if (handleEmptyFormSubmission && typeof handleEmptyFormSubmission === 'function') {
             try {
               await handleEmptyFormSubmission();
+              handleDiscardForm()
+              return setIsSubmitting(false)
             } catch (error) {
-              setIsSubmitting(false);
+              return setIsSubmitting(false);
             }
           }
         }
