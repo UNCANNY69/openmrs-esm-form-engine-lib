@@ -103,12 +103,12 @@ export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = ({
     const handleFormSubmission = async () => {
       if (isSubmitting) {
         const forms = [rootForm.current, ...Object.values(subForms.current)];
-        // Check if the form is empty
-        const isEmpty = forms.every((formContext) => validateEmptyForm(formContext));
         // Validate all forms
         const isValid = forms.every((formContext) => validateForm(formContext));
+        // Check if the form is empty
+        const isEmpty = forms.every((formContext) => validateEmptyForm(formContext));
 
-        if (isEmpty) {
+        if (isEmpty && isValid) {
           if (handleEmptyFormSubmission && typeof handleEmptyFormSubmission === 'function') {
             try {
               await handleEmptyFormSubmission();
@@ -164,7 +164,6 @@ export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = ({
             }
           }
         } else {
-          console.log("Helll")
           setIsSubmitting(false);
         }
       }
