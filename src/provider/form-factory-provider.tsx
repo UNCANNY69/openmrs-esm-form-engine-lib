@@ -47,11 +47,9 @@ interface FormFactoryProviderProps {
     isSubmitting: boolean;
     setIsSubmitting: (isSubmitting: boolean) => void;
     onSubmit: (data: any) => void;
-    onError: (error: any) => void;
     handleClose: () => void;
   };
   hideFormCollapseToggle: () => void;
-  handleDiscardForm: () => void;
   handleConfirmQuestionDeletion?: (question: Readonly<FormField>) => Promise<void>;
   handleEmptyFormSubmission?: () => Promise<void>;
   setIsFormDirty: (isFormDirty: boolean) => void;
@@ -72,7 +70,6 @@ export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = ({
   children,
   formSubmissionProps,
   hideFormCollapseToggle,
-  handleDiscardForm,
   handleEmptyFormSubmission,
   handleConfirmQuestionDeletion,
   setIsFormDirty,
@@ -81,7 +78,7 @@ export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = ({
   const rootForm = useRef<FormContextProps>();
   const subForms = useRef<Record<string, FormContextProps>>({});
   const layoutType = useLayoutType();
-  const { isSubmitting, setIsSubmitting, onSubmit, onError, handleClose } = formSubmissionProps;
+  const { isSubmitting, setIsSubmitting, onSubmit, handleClose } = formSubmissionProps;
   const postSubmissionHandlers = usePostSubmissionActions(formJson.postSubmissionActions);
 
   const abortController = new AbortController();
@@ -112,7 +109,7 @@ export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = ({
           if (handleEmptyFormSubmission && typeof handleEmptyFormSubmission === 'function') {
             try {
               await handleEmptyFormSubmission();
-              handleDiscardForm()
+              handleClose()
               return setIsSubmitting(false)
             } catch (error) {
               return setIsSubmitting(false);

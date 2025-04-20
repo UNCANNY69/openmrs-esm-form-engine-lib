@@ -130,14 +130,12 @@ const FormEngine = ({
           visit={visit}
           handleConfirmQuestionDeletion={handleConfirmQuestionDeletion}
           handleEmptyFormSubmission={handleEmptyFormSubmission}
-          handleDiscardForm={handleClose}
           isFormExpanded={isFormExpanded}
           formSubmissionProps={{
             isSubmitting,
             setIsSubmitting,
-            onSubmit,
-            onError: () => {},
-            handleClose: () => {},
+            onSubmit, 
+            handleClose: handleClose,
           }}
           hideFormCollapseToggle={hideFormCollapseToggle}
           setIsFormDirty={setIsFormDirty}>
