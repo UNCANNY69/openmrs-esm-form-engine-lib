@@ -102,22 +102,33 @@ export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = ({
         const forms = [rootForm.current, ...Object.values(subForms.current)];
         // Validate all forms
         const isValid = forms.every((formContext) => validateForm(formContext));
-        // Check if the form is empty
-        const isEmpty = forms.every((formContext) => validateEmptyForm(formContext));
-
-        if (isEmpty && isValid) {
-          if (handleEmptyFormSubmission && typeof handleEmptyFormSubmission === 'function') {
-            try {
-              await handleEmptyFormSubmission();
-              handleClose()
-              return setIsSubmitting(false)
-            } catch (error) {
+  
+        if (isValid) {
+          // Check if the form is empty
+          const isEmpty = forms.every((formContext) => validateEmptyForm(formContext));
+          if (isEmpty) {
+            if (handleEmptyFormSubmission && typeof handleEmptyFormSubmission === 'function') {
+              const result = handleEmptyFormSubmission(); 
+              if (result instanceof Promise) { 
+                try {
+                  await result;
+                  handleClose();
+                } catch {
+                  // Rejected (cancelled) → Do nothing
+                }
+              }  
+              else if (typeof result === 'boolean') {
+                if (result) { // If `true`, close the form
+                  handleClose();
+                }
+              }
+              else {
+                handleClose(); 
+              }
               return setIsSubmitting(false);
             }
           }
-        }
-  
-        if (isValid) {
+
           try {
             const results = await Promise.all(
               forms.map((formContext) => formContext.processor.processSubmission(formContext, abortController))
