@@ -114,7 +114,7 @@ export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = ({
                   await result;
                   handleClose();
                 } catch {
-                  // Rejected (cancelled) → Do nothing
+                  // Rejected (cancelled) -> Do nothing
                 }
               }  
               else if (typeof result === 'boolean') {
